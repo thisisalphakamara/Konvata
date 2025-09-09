@@ -154,11 +154,7 @@ export default function Home() {
     });
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numbers and decimal points
-    const value = e.target.value.replace(/[^0-9.]/g, '');
-    setAmount(value);
-  };
+  // Amount is handled directly in the input's onChange
 
   const handleConvert = async (e: React.FormEvent) => {
     e.preventDefault();

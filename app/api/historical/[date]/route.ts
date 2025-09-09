@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { coinlayerFetch, LiveRatesResponse } from "@/lib/coinlayer";
 
-type Params = { params: { date: string } };
-
 interface ErrorResponse {
   success: false;
   error: {
@@ -11,7 +9,10 @@ interface ErrorResponse {
   };
 }
 
-export async function GET(request: Request, { params }: Params) {
+export async function GET(
+  request: Request,
+  { params }: { params: { date: string } }
+) {
   try {
     const { date } = params;
     const { searchParams } = new URL(request.url);

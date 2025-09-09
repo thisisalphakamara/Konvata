@@ -13,13 +13,7 @@ import {
   Legend,
   ChartOptions,
   ChartData,
-  TooltipItem,
-  TooltipModel,
-  ChartType,
-  ChartDataset,
-  DefaultDataPoint,
-  Scale,
-  Tick,
+  TooltipItem
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 

@@ -2,27 +2,14 @@ import { NextResponse } from "next/server";
 import { coinlayerFetch, ConvertResponse, LiveRatesResponse } from "@/lib/coinlayer";
 
 interface ErrorResponse {
-  success: boolean;
+  success: false;
   error: {
     message: string;
     code?: string | number;
   };
 }
 
-interface SuccessResponse {
-  success: true;
-  query: {
-    from: string;
-    to: string;
-    amount: number;
-  };
-  info: {
-    timestamp: number;
-    rate: number;
-  };
-  result: number;
-  note?: string;
-}
+// Success response is handled by the return type of coinlayerFetch
 
 export async function GET(request: Request) {
   try {
