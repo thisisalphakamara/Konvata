@@ -9,8 +9,10 @@ interface ErrorResponse {
   };
 }
 
+import { NextRequest } from 'next/server';
+
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { date: string } }
 ) {
   try {

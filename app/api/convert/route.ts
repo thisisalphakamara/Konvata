@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { coinlayerFetch, ConvertResponse, LiveRatesResponse } from "@/lib/coinlayer";
 
 interface ErrorResponse {
@@ -11,7 +11,7 @@ interface ErrorResponse {
 
 // Success response is handled by the return type of coinlayerFetch
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from")?.toUpperCase();
