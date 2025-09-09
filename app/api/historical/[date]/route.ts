@@ -1,3 +1,4 @@
+// Updated to fix TypeScript error
 import { NextResponse, NextRequest } from "next/server";
 import { coinlayerFetch, LiveRatesResponse } from "@/lib/coinlayer";
 
