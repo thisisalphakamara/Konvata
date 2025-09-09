@@ -9,18 +9,12 @@ interface ErrorResponse {
   };
 }
 
-type RouteParams = {
-  params: {
-    date: string;
-  };
-};
-
 export async function GET(
   request: NextRequest,
-  context: RouteParams
+  { params }: { params: { date: string } }
 ) {
   try {
-    const { date } = context.params;
+    const { date } = params;
     const { searchParams } = new URL(request.url);
     const target = searchParams.get("target") ?? "USD";
     const symbols = searchParams.get("symbols") ?? undefined;
