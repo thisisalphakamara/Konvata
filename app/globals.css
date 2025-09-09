@@ -19,8 +19,64 @@
   }
 }
 
+/* Explicit dark theme override */
+html[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+/* Smooth color transitions for common elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  accent-color: rgb(71, 85, 105); /* slate-600 */
+}
+
+/* Nicer scrollbars in WebKit */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Utility: elevated card */
+.card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+}
+.card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 12px 30px rgba(0,0,0,0.12);
+}
+
+/* Ensure long numbers/strings wrap and stay within cards */
+.fit-number {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.15;
+}
+
+/* Focus ring (neutral slate, not purple) */
+:focus-visible {
+  outline: 2px solid rgba(100, 116, 139, 0.8); /* slate-500 */
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Avoid colored outline on selects specifically */
+select:focus-visible,
+select:hover {
+  outline-color: rgba(100, 116, 139, 0.6); /* slate */
 }
