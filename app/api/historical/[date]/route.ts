@@ -10,9 +10,15 @@ interface ErrorResponse {
   };
 }
 
+interface RouteParams {
+  params: {
+    date: string;
+  };
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { date: string } }
+  { params }: RouteParams
 ) {
   try {
     const { date } = params;
