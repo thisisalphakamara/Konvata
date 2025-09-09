@@ -31,13 +31,18 @@ export default function ThemeToggle() {
     }
   };
 
+  type ThemePreference = 'system' | 'light' | 'dark';
+
   const cycle = () => {
-    const order = ["system", "light", "dark"] as const;
-    const idx = order.indexOf(theme as any);
-    const next = order[(idx + 1) % order.length];
-    setTheme(next);
-    localStorage.setItem("venus.theme", next);
-    applyTheme(next);
+    const order: ThemePreference[] = ["system", "light", "dark"];
+    const currentTheme = theme as ThemePreference;
+    const currentIndex = order.indexOf(currentTheme);
+    const nextIndex = (currentIndex + 1) % order.length;
+    const nextTheme = order[nextIndex];
+    
+    setTheme(nextTheme);
+    localStorage.setItem("venus.theme", nextTheme);
+    applyTheme(nextTheme);
   };
 
   // Prevent hydration mismatch by rendering a placeholder until mounted on client

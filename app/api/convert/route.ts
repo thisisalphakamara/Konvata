@@ -1,5 +1,28 @@
 import { NextResponse } from "next/server";
-import { coinlayerFetch } from "@/lib/coinlayer";
+import { coinlayerFetch, ConvertResponse, LiveRatesResponse } from "@/lib/coinlayer";
+
+interface ErrorResponse {
+  success: boolean;
+  error: {
+    message: string;
+    code?: string | number;
+  };
+}
+
+interface SuccessResponse {
+  success: true;
+  query: {
+    from: string;
+    to: string;
+    amount: number;
+  };
+  info: {
+    timestamp: number;
+    rate: number;
+  };
+  result: number;
+  note?: string;
+}
 
 export async function GET(request: Request) {
   try {
@@ -21,14 +44,17 @@ export async function GET(request: Request) {
 
     // Try native Coinlayer convert first (Basic plan+)
     try {
-      const data = await coinlayerFetch("/convert", {
+      const data: ConvertResponse = await coinlayerFetch("/convert", {
         from,
         to,
         amount,
         date,
       });
       return NextResponse.json(data, { status: 200 });
-    } catch (apiErr: any) {
+    } catch (apiErr: unknown) {
+      const error = apiErr as Error;
+      const errorMessage = error?.message || 'Unknown error occurred';
+
       // Fallback for free plan: compute using live USD rates
       // Supported:
       // - crypto -> crypto: amount * (USD_rate(to) / USD_rate(from))
@@ -43,7 +69,7 @@ export async function GET(request: Request) {
       }
 
       if (to === "USD") {
-        const live = await coinlayerFetch("/live", { symbols: from });
+        const live = await coinlayerFetch<LiveRatesResponse>("/live", { symbols: from });
         const rate = live?.rates?.[from];
         const r = typeof rate === "number" ? rate : rate?.rate;
         if (!r) {
@@ -67,7 +93,7 @@ export async function GET(request: Request) {
 
       // crypto -> crypto via USD cross
       const symbols = `${from},${to}`;
-      const live = await coinlayerFetch("/live", { symbols });
+      const live = await coinlayerFetch<LiveRatesResponse>("/live", { symbols });
       const rateFrom = live?.rates?.[from];
       const rateTo = live?.rates?.[to];
       const rf = typeof rateFrom === "number" ? rateFrom : rateFrom?.rate;
@@ -92,17 +118,23 @@ export async function GET(request: Request) {
         {
           success: false,
           error: {
-            message:
-              apiErr?.message ||
-              "Conversion endpoint is not available on this plan. Try converting to USD or between two cryptos.",
+            message: errorMessage,
+            code: 'UNSUPPORTED_CONVERSION'
           },
-        },
+        } as ErrorResponse,
         { status: 402 }
       );
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error;
     return NextResponse.json(
-      { success: false, error: { message: err?.message || "Unknown error" } },
+      { 
+        success: false, 
+        error: { 
+          message: error?.message || "An unknown error occurred",
+          code: 'INTERNAL_SERVER_ERROR'
+        } 
+      } as ErrorResponse,
       { status: 500 }
     );
   }

@@ -14,7 +14,16 @@ const HistoricalChart = dynamic(
 type SymbolMap = Record<string, { symbol: string; name: string; name_full: string; max_supply?: number; icon_url?: string }>;
 type FiatMap = Record<string, string>; // e.g., { USD: "United States Dollar" }
 
-type LiveRates = Record<string, number | { rate: number }>;
+interface RateInfo {
+  rate: number;
+  change_24h?: number;
+  high_24h?: number;
+  low_24h?: number;
+  volume_24h?: number;
+  market_cap?: number;
+}
+
+type LiveRates = Record<string, number | RateInfo>;
 
 export default function Home() {
   const { show } = useToast();
@@ -54,24 +63,45 @@ export default function Home() {
 
   // Load symbols once
   useEffect(() => {
+    interface SymbolsResponse {
+      success: boolean;
+      crypto?: SymbolMap;
+      fiat?: FiatMap;
+      error?: {
+        message: string;
+      };
+    }
+
     (async () => {
       try {
         const res = await fetch("/api/symbols");
-        const data = await res.json();
+        const data: SymbolsResponse = await res.json();
+        
         if (data?.success && data?.crypto) {
-          setSymbols(data.crypto as SymbolMap);
-          if (data?.fiat) setFiat(data.fiat as FiatMap);
+          setSymbols(data.crypto);
+          if (data.fiat) {
+            setFiat(data.fiat);
+          }
         } else {
           throw new Error(data?.error?.message || "Failed to load symbols");
         }
-      } catch (e: any) {
-        setError(e?.message || "Failed to load symbols");
+      } catch (err) {
+        const error = err as Error;
+        setError(error?.message || "Failed to load symbols");
       }
     })();
   }, []);
 
   // Load live rates for popular symbols
   useEffect(() => {
+    interface LiveRatesResponse {
+      success: boolean;
+      rates?: LiveRates;
+      error?: {
+        message: string;
+      };
+    }
+
     const load = async () => {
       try {
         setLoadingLive(true);
@@ -79,19 +109,23 @@ export default function Home() {
         const url = showAll
           ? `/api/live?target=${encodeURIComponent(target)}&expand=1`
           : `/api/live?target=${encodeURIComponent(target)}&symbols=${popular.join(",")}&expand=1`;
+        
         const res = await fetch(url);
-        const data = await res.json();
+        const data: LiveRatesResponse = await res.json();
+        
         if (data?.success && data?.rates) {
-          setLive(data.rates as LiveRates);
+          setLive(data.rates);
         } else {
           throw new Error(data?.error?.message || "Failed to load live rates");
         }
-      } catch (e: any) {
-        setError(e?.message || "Failed to load live rates");
+      } catch (err) {
+        const error = err as Error;
+        setError(error?.message || "Failed to load live rates");
       } finally {
         setLoadingLive(false);
       }
     };
+    
     load();
   }, [target, popular, showAll]);
 
@@ -103,16 +137,12 @@ export default function Home() {
   const [showAddToast, setShowAddToast] = useState<{show: boolean, symbol: string, isNew: boolean} | null>(null);
 
   useEffect(() => {
-    if (showAddToast?.show) {
-      show(
-        showAddToast.isNew 
-          ? `${showAddToast.symbol} added to list` 
-          : `${showAddToast.symbol} is already in the list`,
-        showAddToast.isNew ? "success" : "info"
-      );
+    if (!showAddToast?.show) return;
+    const timer = setTimeout(() => {
       setShowAddToast(null);
-    }
-  }, [showAddToast, show]);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showAddToast]);
 
   const handleAddPopular = () => {
     if (!addSymbol) return;
@@ -124,27 +154,70 @@ export default function Home() {
     });
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers and decimal points
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    setAmount(value);
+  };
+
   const handleConvert = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setConvLoading(true);
       setConvError(null);
       setConvResult(null);
-      const url = `/api/convert?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(amount)}`;
+      const url = `/api/convert?from=${from}&to=${to}&amount=${amount}`;
       const res = await fetch(url);
-      const data = await res.json();
-      if (data?.success && typeof data?.result === "number") {
+      const data: ConvertResponse = await res.json();
+      
+      if (data?.success && data.result !== undefined) {
         setConvResult(data.result);
-        show(`Converted ${amount} ${from} → ${to}`, "success");
       } else {
         throw new Error(data?.error?.message || "Conversion failed");
       }
-    } catch (e: any) {
-      setConvError(e?.message || "Conversion failed");
-      show(e?.message || "Conversion failed", "error");
+    } catch (err) {
+      const error = err as Error;
+      const errorMessage = error?.message || "Conversion failed";
+      setConvError(errorMessage);
+      show(errorMessage, "error");
     } finally {
       setConvLoading(false);
     }
+  };
+
+  interface ConvertResponse {
+    success: boolean;
+    result?: number;
+    error?: {
+      message: string;
+    };
+  }
+
+  const filteredCrypto = useMemo(() => {
+    if (!liveSearch) return cryptoList;
+    const search = liveSearch.toLowerCase();
+    return cryptoList.filter((sym) => {
+      const info = symbols[sym];
+      if (!info) return false;
+      return (
+        sym.toLowerCase().includes(search) ||
+        info.name.toLowerCase().includes(search) ||
+        (info.name_full && info.name_full.toLowerCase().includes(search))
+      );
+    });
+  }, [cryptoList, liveSearch, symbols]);
+
+  const renderRate = (sym: string): string => {
+    const rateValue = live[sym];
+    if (rateValue === undefined) return '...';
+    
+    const value = typeof rateValue === 'number' ? rateValue : rateValue?.rate;
+    if (value === undefined) return '...';
+    
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    });
   };
 
   return (
@@ -224,7 +297,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={handleAddPopular}
-                    className="inline-flex items-center justify-center rounded-md bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 font-medium"
+                    className="inline-flex items-center justify-center rounded-md bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white px-4 py-2 font-medium"
                   >
                     Add
                   </button>
@@ -245,19 +318,15 @@ export default function Home() {
               </>
             )}
             {!loadingLive && (showAll ?
-              Object.keys(live)
-                .filter((s) => !liveSearch || s.includes(liveSearch))
-                .sort()
+              filteredCrypto
                 .slice(0, maxShow)
                 .map((sym) => {
-                  const entry = live?.[sym] as any;
-                  const rate: number = typeof entry === "number" ? entry : entry?.rate;
                   const meta = symbols?.[sym];
                   return (
                     <div 
                       key={sym} 
                       onClick={() => openHistoricalData(sym)}
-                      className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-white dark:bg-white/5 card hover:translate-y-[-2px] transition-transform cursor-pointer hover:shadow-md dark:hover:bg-white/10"
+                      className="rounded-xl border border-slate-200 dark:border-white/10 p-4 bg-white dark:bg-white/5 hover:shadow-md transition-shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-white/10"
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -267,15 +336,18 @@ export default function Home() {
                         <div className="text-xs text-slate-500 dark:text-slate-400">Click for history</div>
                       </div>
                       <div className="mt-3 text-2xl font-bold tracking-tight fit-number">
-                        {rate ? `${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${target}` : "—"}
+                        {renderRate(sym)} {target}
+                        {live[sym] && typeof live[sym] === 'object' && 'change_24h' in live[sym] && (
+                          <span className={`ml-2 text-xs ${(live[sym] as RateInfo).change_24h! >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {(live[sym] as RateInfo).change_24h! >= 0 ? '↑' : '↓'} {Math.abs((live[sym] as RateInfo).change_24h!)}%
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
                 })
               :
               popular.map((sym) => {
-                const entry = live?.[sym] as any;
-                const rate: number = typeof entry === "number" ? entry : entry?.rate;
                 const meta = symbols?.[sym];
                 return (
                   <div 
@@ -291,7 +363,12 @@ export default function Home() {
                       <div className="text-xs text-slate-500 dark:text-slate-400">Click for history</div>
                     </div>
                     <div className="mt-3 text-2xl font-bold tracking-tight fit-number">
-                      {rate ? `${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${target}` : "—"}
+                      {renderRate(sym)} {target}
+                      {live[sym] && typeof live[sym] === 'object' && 'change_24h' in live[sym] && (
+                        <span className={`ml-2 text-xs ${(live[sym] as RateInfo).change_24h! >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {(live[sym] as RateInfo).change_24h! >= 0 ? '↑' : '↓'} {Math.abs((live[sym] as RateInfo).change_24h!)}%
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

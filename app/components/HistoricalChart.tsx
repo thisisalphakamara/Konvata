@@ -11,6 +11,15 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartOptions,
+  ChartData,
+  TooltipItem,
+  TooltipModel,
+  ChartType,
+  ChartDataset,
+  DefaultDataPoint,
+  Scale,
+  Tick,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
@@ -25,10 +34,12 @@ ChartJS.register(
   Legend
 );
 
-type HistoricalData = {
+interface HistoricalDataPoint {
   date: string;
   price: number;
-}[];
+}
+
+type HistoricalData = HistoricalDataPoint[];
 
 export default function HistoricalChart({ 
   symbol, 
@@ -57,19 +68,28 @@ export default function HistoricalChart({
 
   // Fetch historical data
   useEffect(() => {
+    interface HistoricalResponse {
+      success: boolean;
+      data?: HistoricalData;
+      error?: {
+        message: string;
+      };
+    }
+
     const fetchHistoricalData = async () => {
       try {
         setLoading(true);
         const response = await fetch(`/api/historical?symbol=${symbol}&target=${target}&days=30`);
-        const result = await response.json();
+        const result: HistoricalResponse = await response.json();
         
         if (result.success && result.data) {
           setData(result.data);
         } else {
           throw new Error(result.error?.message || 'Failed to load historical data');
         }
-      } catch (err: any) {
-        setError(err.message || 'An error occurred while fetching historical data');
+      } catch (err) {
+        const error = err as Error;
+        setError(error.message || 'An error occurred while fetching historical data');
       } finally {
         setLoading(false);
       }
@@ -81,7 +101,7 @@ export default function HistoricalChart({
   }, [symbol, target]);
 
   // Prepare chart data
-  const chartData = {
+  const chartData: ChartData<'line', number[], string> = {
     labels: data.map(item => format(new Date(item.date), 'MMM d')),
     datasets: [
       {
@@ -96,7 +116,7 @@ export default function HistoricalChart({
     ],
   };
 
-  const options = {
+  const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -110,8 +130,9 @@ export default function HistoricalChart({
         padding: 10,
         displayColors: false,
         callbacks: {
-          label: (context: any) => {
-            return `${symbol}: ${context.raw.toLocaleString()} ${target}`;
+          label: (context: TooltipItem<'line'>) => {
+            const value = context.parsed.y;
+            return `${symbol}: ${value.toLocaleString()} ${target}`;
           },
         },
       },
@@ -132,7 +153,12 @@ export default function HistoricalChart({
           color: 'rgba(0, 0, 0, 0.05)',
         },
         ticks: {
-          callback: (value: any) => `${value} ${target}`,
+          callback: (value: string | number) => {
+            if (typeof value === 'number') {
+              return `${value} ${target}`;
+            }
+            return value;
+          },
         },
       },
     },
