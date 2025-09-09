@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { coinlayerFetch, LiveRatesResponse } from "@/lib/coinlayer";
 
 interface ErrorResponse {
@@ -9,14 +9,18 @@ interface ErrorResponse {
   };
 }
 
-import { NextRequest } from 'next/server';
+type RouteParams = {
+  params: {
+    date: string;
+  };
+};
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { date: string } }
+  context: RouteParams
 ) {
   try {
-    const { date } = params;
+    const { date } = context.params;
     const { searchParams } = new URL(request.url);
     const target = searchParams.get("target") ?? "USD";
     const symbols = searchParams.get("symbols") ?? undefined;
